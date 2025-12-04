@@ -10,7 +10,7 @@ function checkValid(p) {
     if (!p.and(0x7).isNull()) {
         return false;
     }
-    return p.compare("0x100000000")  >= 0;
+    return p.compare("0x200000000000")  >= 0 && p.compare("0x700000000000000") < 0;
 }
 
 function handlePr(addr, keyword) {
@@ -24,7 +24,7 @@ function handlePr(addr, keyword) {
             for (let i = 0; i < 30; i++) {
                 try {
                     if (checkValid(args[i])) {
-                        const buf = args[i].readByteArray(1024)
+                        const buf = args[i].readByteArray(128)
                         if (!buf) {
                             continue;
                         }
@@ -57,24 +57,14 @@ function handlePr(addr, keyword) {
         onLeave(retval) {
             console.log(`===== ${addr} LEAVE =====`);
             console.log(` ${addr}  Return value ${retval}`);
-            try {
-                if (checkValid(retval)) {
-                    console.log(addr + "||" + hexdump(retval, {
-                        offset: 0,
-                        length: 64
-                    }));
-                }
-
-            } catch (_) {
-            }
         }
     });
 
 }
 
 
-const prs = ["102454D74", "10247A138"]
-const k = "";
+const prs = ["105831328", "1058469dc", "10587c208"]
+const k = "o.o.o.o";
 for (let pr of prs) {
     handlePr(pr, k);
 }

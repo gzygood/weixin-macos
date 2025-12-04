@@ -1,21 +1,20 @@
-const keyword = "7.7";
-const addrs = ["6000033DDE48"]
-console.log(keyword);
-console.log(addrs);
+const mod = Process.getModuleByName("WeChat");
+
 
 function memoGet(p) {
     p = "0x" + p;
     const idaAddr = ptr(p);
-    ryAccessMonitor.enable(
+    MemoryAccessMonitor.enable(
         {
             base: idaAddr,
-            size: 0x40  // buffer 大小
+            size: 0x10  // buffer 大小
         },
         {
             onAccess(details) {
                 console.log("Access by:", details.from);
-                attach(details.from)
-                console.log(hexdump(idaAddr, {length: 0x40}));
+                if (details.from.compare(mod.base) > 0 && details.from.compare(mod.base.add(mod.size)) < 0) {
+                    console.log("dump idaAddr", hexdump(idaAddr, {length: 0x40}));
+                }
             }
         }
     );
@@ -29,14 +28,14 @@ function attach(from) {
 
     Interceptor.attach(realAddr, {
         onEnter(args) {
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 30; i++) {
                 try {
                     if (args[i].isNull()) {
                         continue;
                     }
-                    console.log(`\n[+] arg${i} ${args[i]}`);
+                    // console.log(`\n[+] arg${i} ${args[i]}`);
 
-                    if (args[i].compare(ptr("0x600000000000")) >= 0 && args[i].compare(ptr("0x700000000000")) < 0 && args[i].and(0x7).isNull()) {
+                    if (checkValid(args[i])) {
                         const buf = args[i].readByteArray(128)
                         if (!buf) {
                             continue;
@@ -71,7 +70,7 @@ function attach(from) {
             console.log("===== sub_105808800 LEAVE =====");
             console.log("Return value:", retval);
             try {
-                if (retval.compare(ptr("0x600000000000")) >= 0 && retval.compare(ptr("0x700000000000")) < 0 && retval.and(0x7).isNull()) {
+                if (checkValid(retval)) {
                     console.log(hexdump(retval, {
                         offset: 0,
                         length: 40
@@ -84,6 +83,26 @@ function attach(from) {
 }
 
 
+function checkValid(p) {
+    if (p.isNull()) {
+        return false;
+    }
+
+    if (!p.and(0x7).isNull()) {
+        return false;
+    }
+    if (p.compare(ptr("0x600000000000")) >= 0 && p.compare(ptr("0x700000000000")) < 0) {
+        return true;
+    }
+    return false;
+}
+
+const keyword = "mmmmm";
+
+const addrs = ["600001EF17DA"]
 for (let addr of addrs) {
     memoGet(addr);
 }
+
+console.log(keyword);
+console.log(addrs);

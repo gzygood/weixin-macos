@@ -9,7 +9,7 @@ MemoryAccessMonitor.enable(
     {
         onAccess(details) {
             console.log("memo Details:", JSON.stringify(details));
-            // console.log("0x6000029C6DF0 Access by:", DebugSymbol.fromAddress(details.from));
+            console.log("0x6000029C6DF0 Access by:", DebugSymbol.fromAddress(details.from));
             console.log(hexdump(idaAddr, { length: 0x40 }));
         }
     }

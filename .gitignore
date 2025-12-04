@@ -1,2 +1,4 @@
 .idea
 __handlers__
+*.sqlite
+.DS_Store

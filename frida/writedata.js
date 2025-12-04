@@ -1,5 +1,5 @@
 const mod = Process.getModuleByName("WeChat");
-const realAddr = ptr("0x1057ee3a8").sub("0x100000000").add(mod.base);
+const realAddr = ptr("0x105835e84").sub("0x100000000").add(mod.base);
 
 console.log("[+] Real Function Address:", realAddr);
 
