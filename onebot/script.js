@@ -32,6 +32,9 @@ var messageContentAddr = ptr(0);
 var messageAddrAddr = ptr(0);
 var contentAddr = ptr(0);
 var insertMsgAddr = ptr(0);
+var protoX1PayloadAddr = ptr(0);
+var protoX1PayloadLen = 1024;
+
 // 消息的taskId
 var taskIdGlobal = 0x20000090 // 最好比较大，不和原始的微信消息重复
 var receiverGlobal = "wxid_"
@@ -373,11 +376,9 @@ function generateRandom5ByteVarint() {
 
 // 拦截 Protobuf 编码逻辑，注入自定义 Payload
 function attachProto() {
-
     console.log("[+] proto注入拦截目标地址: " + protobufAddr);
-
-    const x1_custom_addr = Memory.alloc(256);
-    console.log("[+] Frida 分配的 Payload 地址: " + x1_custom_addr);
+    protoX1PayloadAddr = Memory.alloc(protoX1PayloadLen);
+    console.log("[+] Frida 分配的 Payload 地址: " + protoX1PayloadAddr);
 
     Interceptor.attach(protobufAddr, {
         onEnter: function (args) {
@@ -386,13 +387,11 @@ function attachProto() {
                 return;
             }
 
-            const prefix = [
-                0x08, 0x01, 0x12, 0x5E, 0x0A, 0x15, 0x0A, 0x13, // 0x00
-            ];
-
+            const type = [0x08, 0x01, 0x12]
+            const receiverHeader = [0x0A, 0x15, 0x0A, 0x13];
             const receiverProto = stringToHexArray(receiverGlobal);
             const contentProto = stringToHexArray(contentGlobal);
-            const contentHeader = [0x12, contentProto.length];
+            const contentHeader = [0x12, ...toVarint(contentProto.length)];
             const tsHeader = [0x18, 0x01, 0x20];
             const tsBytes = getVarintTimestampBytes();
             const msgIdHeader = [0x28]
@@ -409,16 +408,21 @@ function attachProto() {
                 0x63, 0x65, 0x3E, 0x00                          // 0x60 ce>.
             ];
 
-            // 合并数组
-            const finalPayload = prefix.concat(receiverProto).concat(contentHeader).concat(contentProto).concat(tsHeader).concat(tsBytes).concat(msgIdHeader).concat(msgId).concat(suffix);
+            const valueLen = toVarint(receiverHeader.length + receiverProto.length + contentHeader.length +
+            contentProto.length + tsHeader.length + tsBytes.length + msgIdHeader.length + msgId.length + suffix.length)
 
-            x1_custom_addr.writeByteArray(finalPayload);
+            // 合并数组
+            const finalPayload = type.concat(valueLen).concat(receiverHeader).concat(receiverProto).concat(contentHeader).
+            concat(contentProto).concat(tsHeader).concat(tsBytes).concat(msgIdHeader).concat(msgId).concat(suffix);
+
+
+            protoX1PayloadAddr.writeByteArray(finalPayload);
             console.log("[+] Payload 已写入，长度: " + finalPayload.length);
 
-            this.context.x1 = x1_custom_addr;
+            this.context.x1 = protoX1PayloadAddr;
             this.context.x2 = ptr(finalPayload.length);
 
-            console.log("[+] 寄存器修改完成: X1=" + this.context.x1 + ", X2=" + this.context.x2, hexdump(x1_custom_addr, {
+            console.log("[+] 寄存器修改完成: X1=" + this.context.x1 + ", X2=" + this.context.x2, hexdump(protoX1PayloadAddr, {
                 offset: 0,
                 length: 128,
                 header: true,
@@ -426,6 +430,16 @@ function attachProto() {
             }));
         }
     });
+}
+
+function toVarint(n) {
+    let res = [];
+    while (n >= 128) {
+        res.push((n & 0x7F) | 0x80); // 取后7位，最高位置1
+        n = n >> 7;                 // 右移7位
+    }
+    res.push(n); // 最后一位最高位为0
+    return res;
 }
 
 setImmediate(attachProto);
